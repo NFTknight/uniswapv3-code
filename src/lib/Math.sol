@@ -188,4 +188,25 @@ library Math {
             )
         }
     }
+
+    function sqrtP(uint256 price) internal pure returns (uint160) {
+        return
+            uint160(
+                int160(
+                    ABDKMath64x64.sqrt(int128(int256(price << 64))) <<
+                        (FixedPoint96.RESOLUTION - 64)
+                )
+            );
+    }
+    
+    /// @notice Calculates sqrt from 18 decimal price 
+    function sqrtPFromDecimal(uint256 price) internal pure returns (uint160) {
+        return
+            uint160(
+                int160(
+                    (ABDKMath64x64.sqrt(int128(int256(price))) / 1000000000) <<
+                        (FixedPoint96.RESOLUTION - 32)
+                )
+            );
+    }
 }
