@@ -8,6 +8,18 @@ interface IUniswapV3Pool {
         address payer;
     }
 
+    struct LiquidityState {
+        int24 lowerTick;
+        int24 upperTick;
+        uint128 liquidity;
+    }
+
+    function getAccumulatedFee(
+        address owner,
+        int24 lowerTick,
+        int24 upperTick
+    ) external view returns (uint256 amount0, uint256 amount1);
+
     function slot0()
         external
         view
@@ -69,4 +81,7 @@ interface IUniswapV3Pool {
         uint160 sqrtPriceLimitX96,
         bytes calldata data
     ) external returns (int256, int256);
+
+    function getLiquidityByAddress(address owner) external view returns (LiquidityState[] memory);
+
 }

@@ -131,6 +131,9 @@ contract UniswapV3Pool is IUniswapV3Pool {
     mapping(int24 => Tick.Info) public ticks;
     mapping(int16 => uint256) public tickBitmap;
     mapping(bytes32 => Position.Info) public positions;
+    mapping(address => IUniswapV3Pool.LiquidityState[]) public liquiditiesList;
+    address[] public liquidityProviders;
+
     Oracle.Observation[65535] public observations;
 
     constructor() {
@@ -246,6 +249,31 @@ contract UniswapV3Pool is IUniswapV3Pool {
                 liquidity,
                 params.liquidityDelta
             );
+
+            uint256 i;
+            if (liquiditiesList[params.owner].length == 0)
+                liquidityProviders.push(params.owner);
+            IUniswapV3Pool.LiquidityState[]
+                storage liquidities = liquiditiesList[params.owner];
+            for (i = 0; i < liquidities.length; i++)
+                if (
+                    liquidities[i].lowerTick == params.lowerTick &&
+                    liquidities[i].upperTick == params.upperTick
+                ) {
+                    liquidities[i].liquidity = LiquidityMath.addLiquidity(
+                        liquidities[i].liquidity,
+                        params.liquidityDelta
+                    );
+                    break;
+                }
+            if (i == liquidities.length)
+                liquidities.push(
+                    IUniswapV3Pool.LiquidityState({
+                        lowerTick: params.lowerTick,
+                        upperTick: params.upperTick,
+                        liquidity: uint128(params.liquidityDelta)
+                    })
+                );
         } else {
             amount1 = Math.calcAmount1Delta(
                 TickMath.getSqrtRatioAtTick(params.lowerTick),
@@ -253,6 +281,12 @@ contract UniswapV3Pool is IUniswapV3Pool {
                 params.liquidityDelta
             );
         }
+    }
+
+    function getLiquidityByAddress(
+        address owner
+    ) external view returns (IUniswapV3Pool.LiquidityState[] memory) {
+        return liquiditiesList[owner];
     }
 
     function mint(
@@ -629,6 +663,28 @@ contract UniswapV3Pool is IUniswapV3Pool {
                 observationCardinalityNextNew
             );
         }
+    }
+
+    function getAccumulatedFee(
+        address owner,
+        int24 lowerTick,
+        int24 upperTick
+    ) external view returns (uint256 amount0, uint256 amount1) {
+        Position.Info storage position = positions.get(
+            owner,
+            lowerTick,
+            upperTick
+        );
+        (uint256 feeGrowthInside0X128, uint256 feeGrowthInside1X128) = ticks
+            .getFeeGrowthInside(
+                lowerTick,
+                upperTick,
+                slot0.tick,
+                feeGrowthGlobal0X128,
+                feeGrowthGlobal1X128
+            );
+
+        (amount0, amount1) = position.calcAccumalatedAmount(feeGrowthInside0X128, feeGrowthInside1X128);
     }
 
     ////////////////////////////////////////////////////////////////////////////
